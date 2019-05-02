@@ -17,6 +17,7 @@ cc.Class({
         this.difficultLayer.active = false
         this.cells = [];
         this.picTexture = null;
+        this.hiddenCell = null;
 
         for (var i = 0; i < this.difficultLayer.children.length; ++i) {
             this.difficultLayer.children[i].on("click", function(event) {
@@ -31,8 +32,178 @@ cc.Class({
                 this.difficultClicked(this.difficultLayer.children[0]);                
             }
             
-        }.bind(this));            
+        }.bind(this));    
+
+        var selectCell = null;
+        var move_dir = 0; // 1 up  2 down  3 left 4 right
+        var pre_pos = cc.v2(0, 0);
+
+        var doResult = function() {
+            if (selectCell) {
+                var can_change = false;
+                if (move_dir == 3 || move_dir == 4) {
+                    if (Math.abs(pre_pos.x - selectCell.x) > selectCell.width * 0.5) {
+                        can_change = true;
+                    }
+                } else if (move_dir == 1 || move_dir == 2) {
+                    if (Math.abs(pre_pos.y - selectCell.y) > selectCell.height * 0.5) {
+                        can_change = true;
+                    }
+                }
+                if (can_change) {
+                    this.change(this.hiddenCell, selectCell, pre_pos);
+                    if (this.isOver()) {
+                        this.setLastActive(true);
+                    }
+                } else {
+                    selectCell.setPosition(pre_pos);
+                }
+            }
+            selectCell = null;
+        };
+        this.contentLayout.on(cc.Node.EventType.TOUCH_START, function(event) {
+            if (this.hiddenCell && this.hiddenCell.active) {
+                return;
+            }
+            var touches = event.getTouches();
+            var touchLoc = touches[0].getLocation();
+            selectCell = null;
+            move_dir = 0;
+            for (var i = 0; i < this.cells.length; ++i) {
+                var tempPos = this.cells[i].convertToNodeSpace(touchLoc);
+                if (cc.rect(0, 0, this.cells[i].width, this.cells[i].height).contains(tempPos)) {
+                    selectCell = this.cells[i];
+                    console.log(i);
+                    break;
+                }
+            }
+
+            if (selectCell) {
+                if (selectCell == this.hiddenCell) {
+                    selectCell = null;
+                } else {
+                    var row_num1 = this.getRowNum(selectCell);
+                    var row_num2 = this.getRowNum(this.hiddenCell);
+                    var column_num1 = this.getColumn(selectCell);
+                    var column_num2 = this.getColumn(this.hiddenCell);
+                    if (row_num1 == row_num2) {
+                        if (column_num1 > column_num2) {
+                            move_dir = 3;
+                        } else {
+                            move_dir = 4;
+                        }
+                    } else if (column_num1 == column_num2) {
+                        if (row_num1 > row_num2) {
+                            move_dir = 2;
+                        } else {
+                            move_dir = 1;
+                        }
+
+                    } else {
+                        selectCell = null;
+                    }
+                }
+            }
+            if (selectCell) {
+                pre_pos = selectCell.getPosition();
+            }
+        }, this);
+        this.contentLayout.on(cc.Node.EventType.TOUCH_MOVE, function(event) {
+            var touches = event.getTouches();
+            var touchLoc = touches[0].getLocation();
+            touchLoc = this.contentLayout.convertToNodeSpace(touchLoc);
+            var d = touches[0].getDelta();
+            if (selectCell) {
+                if (move_dir == 1 || move_dir == 2) {
+                    selectCell.y += d.y;
+                    if (this.isBoundary(selectCell, d.y > 0 && 1 || 2)) {
+                        selectCell.y -= d.y;
+                    }
+                } else if (move_dir == 3 || move_dir == 4) {
+                    selectCell.x += d.x;
+                    if (this.isBoundary(selectCell, d.x > 0 && 4 || 3)) {
+                        selectCell.x -= d.x;
+                    }
+                }
+                if (!cc.rect(0, 0, this.contentLayout.width, this.contentLayout.height).contains(touchLoc)) {
+                    doResult.apply(this);
+                }
+            }
+
+        }, this);      
+        this.contentLayout.on(cc.Node.EventType.TOUCH_END, function(event) {
+            doResult.apply(this);
+        }, this);
          
+    },
+    isBoundary: function(cell, dir) {
+        var index =  this.getIndexInCells(cell);
+        if (dir == 3) {
+            var leftCell = this.cells[index - 1];
+            if (!leftCell) {
+                return true;
+            } else if (this.getRowNum(cell) != this.getRowNum(leftCell)) {
+                return true;
+            } else if (this.hiddenCell == leftCell) {
+                if (cell.x <= leftCell.x) {
+                    return true;
+                }
+            } else if (leftCell.x + leftCell.width >= cell.x) {
+                return true;
+            }
+        } else if (dir == 4) {
+            var rightCell = this.cells[index + 1];
+            if (!rightCell) {
+                return true;
+            } else if (this.getRowNum(cell) != this.getRowNum(rightCell)) {
+                return true;
+            } else if (this.hiddenCell == rightCell) {
+                if (cell.x >= rightCell.x) {
+                    return true;
+                }
+            } else if (cell.x + cell.width >= rightCell.x) {
+                return true;
+            }
+        } else if (dir == 1) {
+            var upCell = this.cells[index - this.matrix_y];
+            if (!upCell) {
+                return true;
+            } else if (this.hiddenCell == upCell) {
+                if (cell.y >= upCell.y) {
+                    return true;
+                }
+            } else if (cell.y + cell.height >= upCell.y) {
+                return true;
+            }
+        } else if (dir == 2) {
+            var  downCell = this.cells[index + this.matrix_y];
+            if (!downCell) {
+                return true;
+            } else if (this.hiddenCell == downCell) {
+                if (cell.y <= downCell.y) {
+                    return true;
+                }
+            } else if (downCell.y + downCell.height >= cell.y) {
+                return true;
+            }
+        }
+        return false;
+    },
+    getRowNum: function(cell) {
+        var index = this.getIndexInCells(cell);
+        if (index >= 0) {
+            return Math.floor(index / this.matrix_y);
+        } else {
+            return -1;
+        }
+    },
+    getColumn: function(cell) {
+        var index = this.getIndexInCells(cell);
+        if (index >= 0) {
+            return index % this.matrix_y;
+        } else {
+            return -1;
+        }
     },
     difficultClicked: function(btnNode) {
         var labelNode = cc.find("Background/Label", btnNode);
@@ -51,6 +222,7 @@ cc.Class({
             this.cells[i].removeFromParent();
         }
         this.cells = [];
+
         this.contentLayout.width = Math.min(this.picTexture.width, cc.winSize.width);
         this.contentLayout.height = Math.min(this.picTexture.height, cc.winSize.height - 400);
         var perSize = cc.size(this.contentLayout.width / this.matrix_y, this.contentLayout.height / this.matrix_x);
@@ -59,7 +231,8 @@ cc.Class({
                 this.initCell(i, j);                          
             }          
         }
-        
+        this.hiddenCell = this.cells[this.cells.length - 1];
+
         var lines = [];
         for (var i = 1; i < this.matrix_x; ++i) {
             lines.push([cc.v2(-this.contentLayout.width * 0.5, i * perSize.height - this.contentLayout.height * 0.5), 
@@ -90,22 +263,22 @@ cc.Class({
         node.parent = this.contentLayout;
 
 
-        node.on(cc.Node.EventType.TOUCH_END, function(event) {
-            var target = this.getMoveTarget(node);
-            if (target) {
-                this.change(node, target);
-                if (this.isOver()) {
-                    this.cells[this.cells.length - 1].active = true;
-                }
-            }
-        }, this);
+        // node.on(cc.Node.EventType.TOUCH_END, function(event) {
+        //     var target = this.getMoveTarget(node);
+        //     if (target) {
+        //         this.change(node, target);
+        //         if (this.isOver()) {
+        //                 this.setLastActive(true);
+        //         }
+        //     }
+        // }, this);
     },
+
     shuffle: function() {
 
         var move_step = Math.floor(Math.random() * 100 + 50);
-        var emptyNode = this.cells[this.cells.length - 1];
         for (var i = 0; i < move_step; ++i) {
-            this.change(emptyNode, this.getMoveTarget(emptyNode, true));
+            this.change(this.hiddenCell, this.getMoveTarget(this.hiddenCell, true));
         } 
     },
     drawLines: function(lines) {
@@ -129,18 +302,23 @@ cc.Class({
         g.stroke();
     },
     setLastActive: function(b) {
-        if (this.cells.length > 0) {
-            this.cells[this.cells.length - 1].active = b;
+        if (this.hiddenCell) {
+            this.hiddenCell.active = b;
         }
     },
-    getMoveTarget: function(node, as_shuffle) {
+    getIndexInCells: function(cell) {
         var index = -1;
         for (var i = 0; i < this.cells.length; ++i) {
-            if (node == this.cells[i]) {
+            if (cell == this.cells[i]) {
                 index = i;
                 break;
             }
         }
+        return index;
+    },
+    getMoveTarget: function(node, as_shuffle) {
+        var index = this.getIndexInCells(node);
+
         if (index >= 0) {
             var nodes = [];
 
@@ -175,22 +353,14 @@ cc.Class({
         }
         return null
     },
-    change:  function(nodeA, nodeB) {
-        var indexA = -1;
-        var indexB = -1;
-        for (var i = 0; i < this.cells.length; ++i) {
-            if (nodeA == this.cells[i]) {
-                indexA = i;
-            }
-            if (nodeB == this.cells[i]) {
-                indexB = i;
-            }
-        }
+    change:  function(nodeA, nodeB, assign_pos_a) {
+        var indexA = this.getIndexInCells(nodeA);
+        var indexB = this.getIndexInCells(nodeB);
         if (indexA >=0 && indexB >= 0) {
             this.cells[indexA] = nodeB;
             this.cells[indexB] = nodeA;
             var posA = nodeA.getPosition();
-            nodeA.setPosition(nodeB.getPosition());
+            nodeA.setPosition(assign_pos_a && assign_pos_a || nodeB.getPosition());
             nodeB.setPosition(posA);
         }
     },
