@@ -124,12 +124,7 @@ cc.Class({
                 }
                 if (selectedDisk.y < 0) {
                     selectedDisk.y = 0;
-                }
-                if (!cc.rect(0, 0, this.node.width, this.node.height).contains(touchLoc)) {
-                    touchStartBarScript.addDisk(selectedDisk);
-                    touchStartBarScript = null;
-                    selectedDisk = null;
-                }
+                }                
             }
         }, this);
 
@@ -156,7 +151,7 @@ cc.Class({
             }
             touchStartBarScript = null;
             selectedDisk = null;
-        });
+        }, this);
 
         cc.director.getScene().on("SUCCESS_EVT", function(event) {
             if (!this.resultPopView) {

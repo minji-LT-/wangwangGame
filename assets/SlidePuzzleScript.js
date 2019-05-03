@@ -124,9 +124,6 @@ cc.Class({
                         selectCell.x -= d.x;
                     }
                 }
-                if (!cc.rect(0, 0, this.contentLayout.width, this.contentLayout.height).contains(touchLoc)) {
-                    doResult.apply(this);
-                }
             }
 
         }, this);      
@@ -135,7 +132,7 @@ cc.Class({
         }, this);
         this.contentLayout.on(cc.Node.EventType.TOUCH_CANCEL, function(event) {
             doResult.apply(this);
-        });
+        }, this);
          
     },
     isBoundary: function(cell, dir) {
