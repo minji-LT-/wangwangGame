@@ -1,3 +1,62 @@
+
+cc.Node._max__touch_num__ = 1;
+cc.Node._touch_num_ = 0;
+cc.Node._touch_id = null;
+var _TempdispatchEvent = cc.Node.prototype.dispatchEvent;
+cc.Node.prototype.dispatchEvent = function(event) {
+    switch (event.type) {
+        case cc.Node.EventType.TOUCH_START:
+            if (cc.Node._max__touch_num__ > cc.Node._touch_num_) {
+                cc.Node._touch_num_++;
+                this._canTouch = true;
+                cc.Node._touch_id = event.getID();
+                _TempdispatchEvent.call(this, event);
+            } 
+            break;
+        case cc.Node.EventType.TOUCH_MOVE:
+            if (this._canTouch && event.getID() == cc.Node._touch_id) {
+                _TempdispatchEvent.call(this, event);
+            }
+            break;
+        case cc.Node.EventType.TOUCH_END:
+            if (this._canTouch && event.getID() == cc.Node._touch_id) {
+                this._canTouch = false;
+                cc.Node._touch_num_--;
+                cc.Node._touch_id = null;
+                _TempdispatchEvent.call(this, event);
+            }
+            break;
+        case cc.Node.EventType.TOUCH_CANCEL:
+            if (this._canTouch && event.getID() == cc.Node._touch_id) {
+                this._canTouch = false;
+                cc.Node._touch_num_--;
+                cc.Node._touch_id = null;
+                _TempdispatchEvent.call(this, event);
+            }
+            break;
+        default:
+            _TempdispatchEvent.call(this, event);
+    }
+};
+var _tempOnPostActivated = cc.Node.prototype._onPostActivated;
+cc.Node.prototype._onPostActivated = function(active) {
+    if (!active && this._canTouch) {
+        this._canTouch = false;
+        cc.Node._touch_num_--;
+        cc.Node._touch_id = null;
+    }
+    _tempOnPostActivated.call(this, active);
+};
+
+var _tempOnPreDestroy = cc.Node.prototype._onPreDestroy;
+cc.Node.prototype._onPreDestroy = function() {
+    if (this._canTouch) {
+        this._canTouch = false;
+        cc.Node._touch_num_--;
+        cc.Node._touch_id = null;
+    }
+    _tempOnPreDestroy.call(this);
+}
 cc.Class({
     extends: cc.Component,
 
@@ -91,7 +150,7 @@ cc.Class({
             touchStartBarScript = null;
             selectedDisk = null;
         }, this);
-        this.node.on(cc.Node.EventType.TOUCH_CHACEL, function(event) {
+        this.node.on(cc.Node.EventType.TOUCH_CANCEL, function(event) {
             if (selectedDisk) {
                 touchStartBarScript.addDisk(selectedDisk);
             }

@@ -73,7 +73,6 @@ cc.Class({
                 var tempPos = this.cells[i].convertToNodeSpace(touchLoc);
                 if (cc.rect(0, 0, this.cells[i].width, this.cells[i].height).contains(tempPos)) {
                     selectCell = this.cells[i];
-                    console.log(i);
                     break;
                 }
             }
@@ -134,6 +133,9 @@ cc.Class({
         this.contentLayout.on(cc.Node.EventType.TOUCH_END, function(event) {
             doResult.apply(this);
         }, this);
+        this.contentLayout.on(cc.Node.EventType.TOUCH_CANCEL, function(event) {
+            doResult.apply(this);
+        });
          
     },
     isBoundary: function(cell, dir) {
