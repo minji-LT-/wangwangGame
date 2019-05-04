@@ -10,7 +10,7 @@ cc.Class({
 
     // LIFE-CYCLE CALLBACKS:
 
-    onLoad () {        
+    onLoad () { 
         this.contentLayout = this.node.getChildByName("ContentLayout");
         var selectBtn = cc.instantiate(this.selectBtn);
         selectBtn.parent = cc.director.getScene();        

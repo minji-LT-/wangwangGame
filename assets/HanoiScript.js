@@ -1,36 +1,32 @@
 
-cc.Node._max__touch_num__ = 1;
-cc.Node._touch_num_ = 0;
-cc.Node._touch_id = null;
+cc.Node._multi_touchable = false;
+cc.Node._first_touch_id = null;
 var _TempdispatchEvent = cc.Node.prototype.dispatchEvent;
 cc.Node.prototype.dispatchEvent = function(event) {
     switch (event.type) {
         case cc.Node.EventType.TOUCH_START:
-            if (cc.Node._max__touch_num__ > cc.Node._touch_num_) {
-                cc.Node._touch_num_++;
+            if (cc.Node._multi_touchable || cc.Node._first_touch_id === null) {
                 this._canTouch = true;
-                cc.Node._touch_id = event.getID();
+                cc.Node._first_touch_id = event.getID();
                 _TempdispatchEvent.call(this, event);
             } 
             break;
         case cc.Node.EventType.TOUCH_MOVE:
-            if (this._canTouch && event.getID() == cc.Node._touch_id) {
+            if (this._canTouch && (cc.Node._multi_touchable || event.getID() == cc.Node._first_touch_id)) {
                 _TempdispatchEvent.call(this, event);
             }
             break;
         case cc.Node.EventType.TOUCH_END:
-            if (this._canTouch && event.getID() == cc.Node._touch_id) {
+            if (this._canTouch && (cc.Node._multi_touchable || event.getID() == cc.Node._first_touch_id)) {
                 this._canTouch = false;
-                cc.Node._touch_num_--;
-                cc.Node._touch_id = null;
+                cc.Node._first_touch_id = null;
                 _TempdispatchEvent.call(this, event);
             }
             break;
         case cc.Node.EventType.TOUCH_CANCEL:
-            if (this._canTouch && event.getID() == cc.Node._touch_id) {
+            if (this._canTouch && (cc.Node._multi_touchable || event.getID() == cc.Node._first_touch_id)) {
                 this._canTouch = false;
-                cc.Node._touch_num_--;
-                cc.Node._touch_id = null;
+                cc.Node._first_touch_id = null;
                 _TempdispatchEvent.call(this, event);
             }
             break;
@@ -42,8 +38,7 @@ var _tempOnPostActivated = cc.Node.prototype._onPostActivated;
 cc.Node.prototype._onPostActivated = function(active) {
     if (!active && this._canTouch) {
         this._canTouch = false;
-        cc.Node._touch_num_--;
-        cc.Node._touch_id = null;
+        cc.Node._first_touch_id = null;
     }
     _tempOnPostActivated.call(this, active);
 };
@@ -52,8 +47,7 @@ var _tempOnPreDestroy = cc.Node.prototype._onPreDestroy;
 cc.Node.prototype._onPreDestroy = function() {
     if (this._canTouch) {
         this._canTouch = false;
-        cc.Node._touch_num_--;
-        cc.Node._touch_id = null;
+        cc.Node._first_touch_id = null;
     }
     _tempOnPreDestroy.call(this);
 }
