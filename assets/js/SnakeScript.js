@@ -194,8 +194,9 @@ cc.Class({
             for (var i = this.bodyCells.length - 1; i > 0; --i) {
                 this.bodyCells[i].setPosition(this.bodyCells[i - 1].getPosition());
             }
-            this.bodyCells[0].setPosition(head_pos);
-            
+            this.bodyCells[0].setPosition(head_pos);            
+        } else {
+            this.showResult();
         }
     },
     getIndexByPos: function(pos, pos_y) {
